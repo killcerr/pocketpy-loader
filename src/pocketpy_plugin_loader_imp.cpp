@@ -1,5 +1,6 @@
+#include "logger.h"
 #include "pocketpy_plugin_loader.hpp"
-
+FILE_LOGGER();
 struct ::pocketpy_plugin_loader::pocketpy_plugin_manager::Impl {};
 pocketpy_plugin_loader::pocketpy_plugin_manager::pocketpy_plugin_manager()
 : ::ll::plugin::PluginManager("pocketpy-loader") {}
@@ -19,7 +20,6 @@ extern bool disable(std::string_view name);
 
 
 bool ::pocketpy_plugin_loader::pocketpy_plugin_manager::load(ll::plugin::Manifest manifest) {
-    // puts(__func__);
     return ::pocketpy_plugin_loader::engine::load(manifest);
 }
 
