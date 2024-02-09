@@ -1,14 +1,22 @@
 #pragma once
 #include <functional>
+#include <mc/math/Vec2.h>
 #include <mc/world/actor/Actor.h>
+#include <mc/world/actor/player/Player.h>
+
 
 constexpr ::Vec3 make_vec3(float x, float y, float z) { return {x, y, z}; }
-
+::Pocketpy_vec3  cast_vec3(const Vec3& v) { return {v.x, v.y, v.z}; }
+::Pocketpy_vec2  cast_vec2(const Vec2& v) { return {v.x, v.z}; }
+::Vec3           cast_vec3(const Pocketpy_vec3& v) { return {v.x, v.y, v.z}; }
+::Vec2           cast_vec2(const Pocketpy_vec2& v) { return {v.x, v.y}; }
+// extern ActorDamageCause ActorDamageCauseToString(ActorDamageCause);
 #include "../pocketpy.h"
+#include "ActorDamageSource_wapper.h"
+#include "BlockPos_wapper.h"
 
 
 namespace type_wappers {
-struct error_type;
 struct ActorWapper {
     Actor* mActor;
     ActorWapper() { mActor = nullptr; }
@@ -65,6 +73,74 @@ struct ActorWapper {
             auto         tag  = _CAST(Str&, args[1]);
             return py_var(vm, self.mActor->addTag(tag.c_str()));
         });
+#define BIND(NAME, ARGC, RTM1, RTM2, EXPR, ...)                                                                        \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        EXPR return py_var(vm, RTM1(self.mActor->##NAME(__VA_ARGS__)) RTM2);                                           \
+    });
+#define BIND_VOID(NAME, ARGC, EXPR, ...)                                                                               \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        self.mActor->##NAME(__VA_ARGS__);                                                                              \
+        EXPR return py_var(vm, NoReturn{});                                                                            \
+    });
+        BIND(getEntityContext, 0, (void*)&);
+        BIND(getTypeName, 0);
+        BIND(getFeetPos, 0, cast_vec3);
+        BIND(getHeadPos, 0, cast_vec3);
+        BIND(getFeetBlockPos, 0, PyBlockPos);
+        BIND(isSimulatedPlayer, 0);
+        BIND(isOnGround, 0);
+        BIND_VOID(setOnFire, 2, , _CAST(int, args[1]), _CAST(bool, args[2]));
+        BIND_VOID(stopFire, 0);
+        BIND(getPosDeltaPerSecLength, 0);
+        BIND(
+            hurtByCause,
+            3,
+            ,
+            ,
+            ,
+            _CAST(float, args[1]),
+            StringToActorDamageCause(_CAST(Str&, args[2])),
+            _CAST(ActorWapper&, args[3]).mActor
+        )
+        BIND_VOID(
+            teleport,
+            3,
+            ,
+            cast_vec3(_CAST(Pocketpy_vec3, args[1])),
+            _CAST(int, args[2]),
+            cast_vec2(_CAST(Pocketpy_vec2, args[3]))
+        )
+        BIND_VOID(setName, 1, , _CAST(Str&, args[1]).c_str());
+        BIND_VOID(kill, 0);
+        BIND_VOID(despawn, 0);
+        BIND_VOID(die, 1, , *(_CAST(::type_wappers::ActorDamageSourceWapper&, args[1]).mSource));
+        BIND(isPlayer, 0);
+        BIND(isLocalPlayer, 0);
+#define PLBIND(NAME, ARGC, RTM1, RTM2, EXPR, ...)                                                                      \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        if (!(self.mActor->getTypeName() == "minecraft:player")) return py_var(vm, NoReturn{});                        \
+        EXPR return py_var(vm, RTM1(((Player*)(self.mActor))->##NAME(__VA_ARGS__)) RTM2);                              \
+    });
+#define PLBIND_VOID(NAME, ARGC, EXPR, ...)                                                                             \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        if (!(self.mActor->getTypeName() == "minecraft:player")) return py_var(vm, NoReturn{});                        \
+        ((Player*)(self.mActor))->##NAME(__VA_ARGS__);                                                                 \
+        EXPR return py_var(vm, NoReturn{});                                                                            \
+    });
+        PLBIND(getIPAndPort, 0);
+        PLBIND(isOperator, 0);
+        PLBIND(getRealName, 0);
+        PLBIND(getLocaleName, 0);
+        PLBIND_VOID(disconnect, 1, , _CAST(Str&, args[1]).sv());
+        PLBIND_VOID(sendMessage, 1, , _CAST(Str&, args[1]).sv());
+#undef BIND
+#undef PLBIND
+#undef BIND_VOID
+#undef PLBIND_VOID
     }
     PY_CLASS(ActorWapper, TypeWappers, ActorWapper)
 };

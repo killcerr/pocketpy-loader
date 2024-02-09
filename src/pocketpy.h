@@ -7,6 +7,8 @@
 #ifndef POCKETPY_H
 #define POCKETPY_H
 #define Vec3 Pocketpy_vec3
+#define Vec2 Pocketpy_vec2
+
 
 #ifdef PK_USER_CONFIG_H
 
@@ -17698,5 +17700,6 @@ void* pkpy_new_repl(pkpy_vm* vm_handle) { return new REPL((VM*)vm_handle); }
 bool pkpy_repl_input(void* r, const char* line) { return ((REPL*)r)->input(line); }
 
 void pkpy_delete_repl(void* repl) { delete (REPL*)repl; }
+#undef Vec2
 #undef Vec3
 #endif // POCKETPY_H

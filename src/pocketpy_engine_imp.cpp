@@ -9,11 +9,36 @@
 #include <filesystem>
 #include <ll/api/event/DynamicListener.h>
 #include <ll/api/event/EventBus.h>
+#include <ll/api/event/command/ExecuteCommandEvent.h>
 #include <ll/api/event/entity/ActorEvent.h>
 #include <ll/api/event/entity/ActorHurtEvent.h>
+#include <ll/api/event/entity/MobDieEvent.h>
+#include <ll/api/event/player/PlayerAddExperienceEvent.h>
+#include <ll/api/event/player/PlayerAttackEvent.h>
+#include <ll/api/event/player/PlayerChangePermEvent.h>
+#include <ll/api/event/player/PlayerChatEvent.h>
+#include <ll/api/event/player/PlayerClickEvent.h>
+#include <ll/api/event/player/PlayerConnectEvent.h>
+#include <ll/api/event/player/PlayerDestroyBlockEvent.h>
+#include <ll/api/event/player/PlayerDieEvent.h>
+#include <ll/api/event/player/PlayerInteractBlockEvent.h>
+#include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerJumpEvent.h>
+#include <ll/api/event/player/PlayerLeaveEvent.h>
+#include <ll/api/event/player/PlayerPickUpItemEvent.h>
+#include <ll/api/event/player/PlayerPlaceBlockEvent.h>
+#include <ll/api/event/player/PlayerRespawnEvent.h>
+#include <ll/api/event/player/PlayerSneakEvent.h>
+#include <ll/api/event/player/PlayerSprintEvent.h>
+#include <ll/api/event/player/PlayerSwingEvent.h>
+#include <ll/api/event/player/PlayerUseItemEvent.h>
+#include <ll/api/event/player/PlayerUseItemOnEvent.h>
 #include <ll/api/event/server/ServerStartedEvent.h>
 #include <ll/api/event/server/ServerStoppingEvent.h>
 #include <ll/api/event/server/ServiceEvents.h>
+#include <ll/api/event/world/BlockChangedEvent.h>
+#include <ll/api/event/world/FireSpreadEvent.h>
+#include <ll/api/event/world/SpawnMobEvent.h>
 #include <ll/api/memory/Hook.h>
 #include <ll/api/plugin/Manifest.h>
 #include <ll/api/plugin/PluginManager.h>
@@ -104,7 +129,7 @@ void setupLoaderModule(VM* vm) {
 
 PyObject* CompoundTagToDict(VM* vm, const CompoundTag& nbt) {
     auto json = nbt.toSnbt(SnbtFormat::Jsonify);
-    logger.info(json);
+    // logger.info(json);
     std::string p;
     bool        inComment = false;
     for (::std::size_t i = 0; i < json.size(); i++) {
@@ -117,75 +142,175 @@ PyObject* CompoundTagToDict(VM* vm, const CompoundTag& nbt) {
     return res;
 }
 
+thread_local struct {
+    CompoundTag*             nbt;
+    std::vector<std::string> path;
+    std::string              type;
+    VM*                      vm;
+    PyObject*                val;
+} nbtSetter_context;
+
+bool nbtSetter() {
+    if (nbtSetter_context.path.size() == 1) {
+        if (nbtSetter_context.type == "EndTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] = EndTag{};
+            return true;
+        }
+        if (nbtSetter_context.type == "ByteTag") {
+
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                ByteTag{py_cast<char>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "ShortTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                ShortTag{py_cast<short>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "IntTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                IntTag{py_cast<int>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "Int64Tag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                IntTag{py_cast<i64>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "FloatTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                FloatTag{py_cast<float>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "DoubleTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                DoubleTag{py_cast<double>(nbtSetter_context.vm, nbtSetter_context.val)};
+            return true;
+        }
+        if (nbtSetter_context.type == "ByteArrayTag") {
+            auto&              t = _py_cast<List&>(nbtSetter_context.vm, nbtSetter_context.val);
+            std::vector<schar> arr(t.size());
+            for (auto c : t) {
+                arr.push_back(py_cast<char>(nbtSetter_context.vm, c));
+            }
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] = ByteArrayTag{arr};
+            return true;
+        }
+        if (nbtSetter_context.type == "StringTag") {
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] =
+                StringTag{py_cast<Str&>(nbtSetter_context.vm, nbtSetter_context.val).sv()};
+            return true;
+        }
+        if (nbtSetter_context.type == "IntArrayTag") {
+            auto&            t = _py_cast<List&>(nbtSetter_context.vm, nbtSetter_context.val);
+            std::vector<int> arr(t.size());
+            for (auto c : t) {
+                arr.push_back(py_cast<int>(nbtSetter_context.vm, c));
+            }
+            (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] = IntArrayTag{arr};
+            return true;
+        }
+        return false;
+    } else {
+        auto store            = nbtSetter_context.nbt;
+        nbtSetter_context.nbt = nbtSetter_context.nbt->get(nbtSetter_context.path[0])->as_ptr<CompoundTag>();
+        nbtSetter_context.path.erase(nbtSetter_context.path.begin());
+        auto res              = nbtSetter();
+        nbtSetter_context.nbt = store;
+        return res;
+    }
+}
+
 void setupEvevntsModule(VM* vm) {
-    auto eventsModule = vm->new_module("EventsApi");
-    type_wappers::ListenerResultWapper::register_class(vm, eventsModule);
-    // vm->bind(eventsModule, "onServerStartedEvent(fn:function)", [](VM* vm, ArgsView args) {
-    //     // puts("bind events module");
-    //     logger.info("onServerStartedEvent");
-    //     // auto& bus      = ll::event::EventBus::getInstance();
-    //     auto callback = args[0];
-    //     auto pl       = pocketpy_plugin_loader::pocketpy_plugin_manager::get(current_loader_context.name);
-    //     auto res      = ll::event::EventBus::getInstance().emplaceListener<ll::event::ServerStartedEvent>(
-    //         [vm, callback, pl](auto& ev) { vm->call(callback); }
-    //     );
-    //     type_wappers::ListenerResultWapper wapper(res);
-    //     return VAR_T(type_wappers::ListenerResultWapper, wapper);
-    // });
-    // vm->bind(eventsModule, "onServerStopingEvent(fn:function)", [](VM* vm, ArgsView args) {
-    //     auto& bus      = ll::event::EventBus::getInstance();
-    //     auto  callback = args[0];
-    //     auto  pl       = pocketpy_plugin_loader::pocketpy_plugin_manager::get(current_loader_context.name);
-    //     auto  res =
-    //         bus.emplaceListener<ll::event::ServerStoppingEvent>([vm, callback](auto& ev) { vm->call(callback); });
-    //     type_wappers::ListenerResultWapper wapper(res);
-    //     return VAR_T(type_wappers::ListenerResultWapper, wapper);
-    // });
-    // vm->bind(eventsModule, "onActorHurtEvent(fn:function)", [](VM* vm, ArgsView args) {
-    //     auto& bus      = ll::event::EventBus::getInstance();
-    //     auto  callback = args[0];
-    //     auto  pl       = pocketpy_plugin_loader::pocketpy_plugin_manager::get(current_loader_context.name);
-    //     auto  res      = bus.emplaceListener<ll::event::entity::ActorHurtEvent>([vm, callback, pl](auto& ev) {
-    //         type_wappers::ActorWapper wapper(&ev.self());
-    //         auto                      res = vm->call(callback, VAR_T(type_wappers::ActorWapper, wapper));
-    //         if (!vm->py_bool(res)) ev.cancel();
-    //     });
-    //     type_wappers::ListenerResultWapper wapper(res);
-    //     return VAR_T(type_wappers::ListenerResultWapper, wapper);
-    // });
-    // ll::event::DynamicListener::create([](CompoundTag& nbt) -> void { pkpy::Dict dict{vm}; });
+    auto playerEventsModule  = vm->new_module("PlayerEventsApi");
+    auto entityEventsModule  = vm->new_module("EntityEventsApi");
+    auto worldEventsModule   = vm->new_module("WorldEventsApi");
+    auto serverEventsModule  = vm->new_module("ServerEventsApi");
+    auto commandEventsModule = vm->new_module("CommandEventsApi");
 #define IF(P)                                                                                                          \
     if (priority == #P) lpri = ll::event::EventPriority::##P
-#define EVENT(N, T)                                                                                                      \
-    vm->bind(eventsModule, "on" N "(callback:function,priority:str)", [](VM* vm, ArgsView args) {                        \
-        auto                     callback = args[0];                                                                     \
-        auto                     pl = pocketpy_plugin_loader::pocketpy_plugin_manager::get(current_loader_context.name); \
-        auto                     priority = _CAST(Str&, args[1]);                                                        \
-        ll::event::EventPriority lpri;                                                                                   \
-        IF(Highest);                                                                                                     \
-        IF(High);                                                                                                        \
-        IF(Normal);                                                                                                      \
-        IF(Low);                                                                                                         \
-        IF(Lowest);                                                                                                      \
-        auto listener = ll::event::DynamicListener::create(                                                              \
-            [vm, callback](CompoundTag& nbt) { vm->call(callback, CompoundTagToDict(vm, nbt)); },                        \
-            ll::event::EventPriority::Normal,                                                                            \
-            pl                                                                                                           \
-        );                                                                                                               \
-        auto res = ll::event::EventBus::getInstance().addListener(listener, ll::event::getEventId<T>);                   \
-        type_wappers::ListenerResultWapper wapper(listener);                                                             \
-        return VAR_T(type_wappers::ListenerResultWapper, wapper);                                                        \
+#define EVENT(P, N)                                                                                                    \
+    vm->bind(P##EventsModule, "on" #N "(callback:function,priority:str)", [](VM* vm, ArgsView args) {                  \
+        auto callback = args[0];                                                                                       \
+        auto pl       = pocketpy_plugin_loader::pocketpy_plugin_manager::get(current_loader_context.name);             \
+        logger.info(current_loader_context.name);                                                                      \
+        auto                     priority = _CAST(Str&, args[1]);                                                      \
+        ll::event::EventPriority lpri;                                                                                 \
+        IF(Highest);                                                                                                   \
+        IF(High);                                                                                                      \
+        IF(Normal);                                                                                                    \
+        IF(Low);                                                                                                       \
+        IF(Lowest);                                                                                                    \
+        auto listener = ll::event::DynamicListener::create(                                                            \
+            [vm, callback](CompoundTag& nbt) {                                                                         \
+                auto dict             = CompoundTagToDict(vm, nbt);                                                    \
+                nbtSetter_context.nbt = &nbt;                                                                          \
+                vm->call(callback, dict);                                                                              \
+            },                                                                                                         \
+            ll::event::EventPriority::Normal,                                                                          \
+            pl                                                                                                         \
+        );                                                                                                             \
+        auto res = ll::event::EventBus::getInstance().addListener(listener, ll::event::getEventId<ll::event::##N>);    \
+        type_wappers::ListenerResultWapper wapper(listener);                                                           \
+        return VAR_T(type_wappers::ListenerResultWapper, wapper);                                                      \
     })
-    EVENT("ServerStarted", ll::event::server::ServerStartedEvent);
-    EVENT("ServerStopping", ll::event::server::ServerStoppingEvent);
-    EVENT("ActorHurt", ll::event::ActorHurtEvent);
+    EVENT(command, ExecuteCommandEvent);
+    EVENT(entity, ActorHurtEvent);
+    EVENT(entity, MobDieEvent);
+    EVENT(player, PlayerAddExperienceEvent);
+    EVENT(player, PlayerAttackEvent);
+    EVENT(player, PlayerChangePermEvent);
+    EVENT(player, PlayerChatEvent);
+    EVENT(player, PlayerClickEvent);
+    EVENT(player, PlayerConnectEvent);
+    EVENT(player, PlayerDestroyBlockEvent);
+    EVENT(player, PlayerDieEvent);
+    EVENT(player, PlayerInteractBlockEvent);
+    EVENT(player, PlayerJoinEvent);
+    EVENT(player, PlayerJumpEvent);
+    EVENT(player, PlayerLeaveEvent);
+    EVENT(player, PlayerPickUpItemEvent);
+    EVENT(player, PlayerPlaceBlockEvent);
+    EVENT(player, PlayerRespawnEvent);
+    EVENT(player, PlayerSneakEvent);
+    EVENT(player, PlayerSprintEvent);
+    EVENT(player, PlayerSwingEvent);
+    EVENT(player, PlayerUseItemEvent);
+    EVENT(player, PlayerUseItemOnEvent);
+    EVENT(server, ServerStartedEvent);
+    EVENT(server, ServerStoppingEvent);
+    EVENT(server, ServiceRegisterEvent);
+    EVENT(server, ServiceUnregisterEvent);
+    EVENT(world, BlockChangedEvent);
+    EVENT(world, FireSpreadEvent);
+    EVENT(world, SpawnMobEvent);
+#undef EVENT
+}
+
+void setupHelperModule(VM* vm) {
+    auto helperModule = vm->new_module("Helper");
+    vm->bind(helperModule, "setNbt(path:list,type:str,val)->bool", [](VM* vm, ArgsView args) {
+        auto& p              = _py_cast<List&>(vm, args[0]);
+        auto& t              = py_cast<Str&>(vm, args[1]);
+        auto  v              = args[2];
+        nbtSetter_context.vm = vm;
+        nbtSetter_context.path.clear();
+        for (auto pa : p) {
+            nbtSetter_context.path.push_back(py_cast<Str&>(vm, pa).c_str());
+        }
+        nbtSetter_context.type = t.c_str();
+        nbtSetter_context.val  = v;
+        return VAR(nbtSetter());
+    });
 }
 
 VM* setupVM() {
     auto vm = new VM();
     setupLoaderModule(vm);
-    setupEvevntsModule(vm);
     setupTypeBinds(vm);
+    setupHelperModule(vm);
+    setupEvevntsModule(vm);
+
     return vm;
 }
 #define CALL_LOADER_CALLBACK(CALLBACK)                                                                                 \

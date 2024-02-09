@@ -9,7 +9,7 @@
 
 #include "../pocketpy.h"
 
-constexpr auto ActorDamageCauseToString(auto e) {
+auto ActorDamageCauseToString(auto e) {
 #define RT_IF(N)                                                                                                       \
     if (e == ActorDamageCause::##N) return #N
     RT_IF(None);
@@ -52,7 +52,7 @@ constexpr auto ActorDamageCauseToString(auto e) {
     return "";
 }
 
-constexpr auto StringToActorDamageCause(auto e) {
+auto StringToActorDamageCause(auto e) {
 #define RT_IF(N)                                                                                                       \
     if (e == #N) return ActorDamageCause::##N
     RT_IF(None);
@@ -163,7 +163,7 @@ auto StringToActorCategory(auto e) {
     RT_IF(ZombieMonster);
     RT_IF(EvocationIllagerMonster);
 #undef RT_IF
-    return "";
+    return ActorCategory::None;
 }
 auto ActorTypeToString(auto e) {
 #define RT_IF(N)                                                                                                       \
@@ -318,6 +318,7 @@ auto ActorTypeToString(auto e) {
     RT_IF(TraderLlama);
     RT_IF(ChestBoatRideable);
 #undef RT_IF
+    return "Unknown";
 }
 namespace type_wappers {
 struct error_type;
@@ -386,6 +387,18 @@ struct ActorDamageSourceWapper {
             return py_var(vm, NoReturn{});
         });
 #undef BIND
+        vm->bind_constructor<1>(type, [](VM* vm, ArgsView args) {
+            auto& source = _CAST(Str&, args[1]);
+            return vm->heap.gcnew<::type_wappers::ActorDamageSourceWapper>(
+                PK_OBJ_GET(Type, args[0]),
+                ::type_wappers::ActorDamageSourceWapper(new ActorDamageSource(StringToActorDamageCause(source)))
+            );
+        });
+        vm->bind__eq__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* self, PyObject* other) {
+            ActorDamageSourceWapper& _self  = _CAST(ActorDamageSourceWapper&, self);
+            ActorDamageSourceWapper& _other = _CAST(ActorDamageSourceWapper&, other);
+            return VAR(_self.mSource->mCause == _other.mSource->mCause);
+        });
     }
     PY_CLASS(ActorDamageSourceWapper, TypeWappers, ActorDamageSourceWapper)
 };

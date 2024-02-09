@@ -44,7 +44,7 @@ struct ListenerResultWapper {
 #undef RT_IF
         });
     }
-    PY_CLASS(ListenerResultWapper, EventsApi, ListenerResultWapper)
+    PY_CLASS(ListenerResultWapper, TypeWappers, ListenerResultWapper)
     std::shared_ptr<ll::event::ListenerBase> listener;
     // ll::event::ListenerId id;
 
