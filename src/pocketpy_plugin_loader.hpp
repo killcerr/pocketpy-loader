@@ -17,5 +17,8 @@ public:
     virtual bool unload(std::string_view name) override;
     virtual bool enable(std::string_view name) override;
     virtual bool disable(std::string_view name) override;
+
+    // private:
+    static std::shared_ptr<ll::plugin::Plugin> get(std::string_view name);
 };
 } // namespace pocketpy_plugin_loader

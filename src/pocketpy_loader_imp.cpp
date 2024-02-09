@@ -25,16 +25,16 @@ bool pocketpy_loader::load(ll::plugin::NativePlugin& self) {
     auto res = ll::plugin::PluginManagerRegistry::getInstance().addManager(
         std::make_shared<::pocketpy_plugin_loader::pocketpy_plugin_manager>()
     );
-    return true;
+    return res;
 }
 
 bool pocketpy_loader::enable() {
-    logger.info("loading {}:{}", loader_info::loader_name, loader_info::version);
+    logger.info("enabling {}:{}", loader_info::loader_name, loader_info::version);
     return true;
 }
 
 bool pocketpy_loader::disable() {
-    logger.info("loading {}:{}", loader_info::loader_name, loader_info::version);
+    logger.info("disabling {}:{}", loader_info::loader_name, loader_info::version);
     return true;
 }
 
@@ -50,12 +50,6 @@ _declspec(dllexport) bool ll_plugin_enable(ll::plugin::NativePlugin&) {
 _declspec(dllexport) bool ll_plugin_disable(ll::plugin::NativePlugin&) {
     return pocketpy_loader::getInstance().disable();
 }
-
-/// @warning Unloading the plugin may cause a crash if the plugin has not released all of its
-/// resources. If you are unsure, keep this function commented out.
-// _declspec(dllexport) bool ll_plugin_unload(ll::plugin::NativePlugin&) {
-//     return test_prject::getInstance().unload();
-// }
 }
 
 } // namespace pocketpy_plugin_loader

@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <mc/world/actor/Actor.h>
 
 constexpr ::Vec3 make_vec3(float x, float y, float z) { return {x, y, z}; }
@@ -7,7 +8,7 @@ constexpr ::Vec3 make_vec3(float x, float y, float z) { return {x, y, z}; }
 
 
 namespace type_wappers {
-
+struct error_type;
 struct ActorWapper {
     Actor* mActor;
     ActorWapper() { mActor = nullptr; }
@@ -50,10 +51,19 @@ struct ActorWapper {
         });
         vm->bind_method<1>(type, "setPos", [](VM* vm, ArgsView args) {
             ActorWapper& self = _CAST(ActorWapper&, args[0]);
-            // auto         pos  = self.mActor->getPosition();
-            auto pos = _CAST(::pkpy::Pocketpy_vec3, args[1]);
+            auto         pos  = _CAST(::pkpy::Pocketpy_vec3, args[1]);
             self.mActor->setPos({pos.x, pos.y, pos.z});
             return py_var(vm, pkpy::NoReturn{});
+        });
+        vm->bind_method<1>(type, "evalMolang", [](VM* vm, ArgsView args) {
+            ActorWapper& self = _CAST(ActorWapper&, args[0]);
+            auto         expr = _CAST(Str&, args[1]);
+            return py_var(vm, self.mActor->evalMolang(expr.c_str()));
+        });
+        vm->bind_method<1>(type, "addTag", [](VM* vm, ArgsView args) {
+            ActorWapper& self = _CAST(ActorWapper&, args[0]);
+            auto         tag  = _CAST(Str&, args[1]);
+            return py_var(vm, self.mActor->addTag(tag.c_str()));
         });
     }
     PY_CLASS(ActorWapper, TypeWappers, ActorWapper)
