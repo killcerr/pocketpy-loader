@@ -1,6 +1,7 @@
 #pragma once
 #include "../pocketpy.h"
 #include "Actor_wapper.h"
+#include "Item_wapper.h"
 
 #include <mc/world/item/registry/ItemStack.h>
 
