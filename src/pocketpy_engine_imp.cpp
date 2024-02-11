@@ -77,7 +77,7 @@ using engines_t = ::std::unordered_map<std::string, pocketpy_engine>;
 engines_t         engines;
 std::vector<char> readF(auto path) {
     auto f = fopen(path, "r");
-    logger.info(path);
+    // logger.info(path);
     if (!f) return {};
     std::vector<char> source;
     char              c = getc(f);
