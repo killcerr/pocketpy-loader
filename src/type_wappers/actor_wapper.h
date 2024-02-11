@@ -2,6 +2,7 @@
 #include <functional>
 #include <mc/math/Vec2.h>
 #include <mc/world/actor/Actor.h>
+#include <mc/world/actor/item/ItemActor.h>
 #include <mc/world/actor/player/Player.h>
 
 
@@ -14,9 +15,11 @@ constexpr ::Vec3 make_vec3(float x, float y, float z) { return {x, y, z}; }
 #include "../pocketpy.h"
 #include "ActorDamageSource_wapper.h"
 #include "BlockPos_wapper.h"
+// #include "ItemStack_wapper.h"
 
 
 namespace type_wappers {
+extern PyObject* _createItemSatckFormActor(VM*, Actor*);
 struct ActorWapper {
     Actor* mActor;
     ActorWapper() { mActor = nullptr; }
@@ -52,8 +55,7 @@ struct ActorWapper {
         });
         vm->bind_method<1>(type, "setNameTag", [](VM* vm, ArgsView args) {
             ActorWapper& self = _CAST(ActorWapper&, args[0]);
-            // auto         pos  = self.mActor->getPosition();
-            auto name = _CAST(Str, args[1]);
+            auto         name = _CAST(Str, args[1]);
             self.mActor->setNameTag(name.c_str());
             return py_var(vm, pkpy::NoReturn{});
         });
@@ -77,13 +79,13 @@ struct ActorWapper {
     vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
         ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
         EXPR return py_var(vm, RTM1(self.mActor->##NAME(__VA_ARGS__)) RTM2);                                           \
-    });
+    })
 #define BIND_VOID(NAME, ARGC, EXPR, ...)                                                                               \
     vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
         ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
         self.mActor->##NAME(__VA_ARGS__);                                                                              \
         EXPR return py_var(vm, NoReturn{});                                                                            \
-    });
+    })
         BIND(getEntityContext, 0, (void*)&);
         BIND(getTypeName, 0);
         BIND(getFeetPos, 0, cast_vec3);
@@ -103,7 +105,7 @@ struct ActorWapper {
             _CAST(float, args[1]),
             StringToActorDamageCause(_CAST(Str&, args[2])),
             _CAST(ActorWapper&, args[3]).mActor
-        )
+        );
         BIND_VOID(
             teleport,
             3,
@@ -111,36 +113,95 @@ struct ActorWapper {
             cast_vec3(_CAST(Pocketpy_vec3, args[1])),
             _CAST(int, args[2]),
             cast_vec2(_CAST(Pocketpy_vec2, args[3]))
-        )
+        );
         BIND_VOID(setName, 1, , _CAST(Str&, args[1]).c_str());
         BIND_VOID(kill, 0);
         BIND_VOID(despawn, 0);
         BIND_VOID(die, 1, , *(_CAST(::type_wappers::ActorDamageSourceWapper&, args[1]).mSource));
-        BIND(isPlayer, 0);
-        BIND(isLocalPlayer, 0);
+        // BIND(isPlayer, 0);
+        // BIND(isLocalPlayer, 0);
+        BIND(isFireImmune, 0);
+        BIND_VOID(
+            playerTouch,
+            1,
+            if (_CAST(::type_wappers::ActorWapper&, args[1]).mActor->getTypeName() == "minecraft:player") {
+                vm->RuntimeError("args[1] is not a player");
+                return py_var(vm, NoReturn{});
+            },
+            *(Player*)(_CAST(::type_wappers::ActorWapper&, args[1]).mActor)
+        );
+        BIND(isCreative, 0);
 #define PLBIND(NAME, ARGC, RTM1, RTM2, EXPR, ...)                                                                      \
     vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
         ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
-        if (!(self.mActor->getTypeName() == "minecraft:player")) return py_var(vm, NoReturn{});                        \
+        if (!(self.mActor->getTypeName() == "minecraft:player")) {                                                     \
+            vm->RuntimeError("self is not a player");                                                                  \
+            return py_var(vm, NoReturn{});                                                                             \
+        }                                                                                                              \
         EXPR return py_var(vm, RTM1(((Player*)(self.mActor))->##NAME(__VA_ARGS__)) RTM2);                              \
-    });
+    })
 #define PLBIND_VOID(NAME, ARGC, EXPR, ...)                                                                             \
     vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
         ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
-        if (!(self.mActor->getTypeName() == "minecraft:player")) return py_var(vm, NoReturn{});                        \
+        if (!(self.mActor->getTypeName() == "minecraft:player")) {                                                     \
+            vm->RuntimeError("self is not a player");                                                                  \
+            return py_var(vm, NoReturn{});                                                                             \
+        }                                                                                                              \
         ((Player*)(self.mActor))->##NAME(__VA_ARGS__);                                                                 \
         EXPR return py_var(vm, NoReturn{});                                                                            \
-    });
+    })
         PLBIND(getIPAndPort, 0);
         PLBIND(isOperator, 0);
         PLBIND(getRealName, 0);
         PLBIND(getLocaleName, 0);
         PLBIND_VOID(disconnect, 1, , _CAST(Str&, args[1]).sv());
         PLBIND_VOID(sendMessage, 1, , _CAST(Str&, args[1]).sv());
+#define IABIND(NAME, ARGC, RTM1, RTM2, EXPR, ...)                                                                      \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        if (!(self.mActor->getTypeName() == "minecraft:item")) {                                                       \
+            vm->RuntimeError("self is not a item");                                                                    \
+            return py_var(vm, NoReturn{});                                                                             \
+        }                                                                                                              \
+        EXPR return py_var(vm, RTM1(((ItemActor*)(self.mActor))->##NAME(__VA_ARGS__)) RTM2);                           \
+    })
+#define IABIND_VOID(NAME, ARGC, EXPR, ...)                                                                             \
+    vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
+        ActorWapper& self = _CAST(ActorWapper&, args[0]);                                                              \
+        if (!(self.mActor->getTypeName() == "minecraft:item")) {                                                       \
+            vm->RuntimeError("self is not a item");                                                                    \
+            return py_var(vm, NoReturn{});                                                                             \
+        }                                                                                                              \
+        ((ItemActor*)(self.mActor))->##NAME(__VA_ARGS__);                                                              \
+        EXPR return py_var(vm, NoReturn{});                                                                            \
+    })
+        vm->bind_method<0>(type, "item", [](VM* vm, ArgsView args) {
+            ActorWapper& self = _CAST(ActorWapper&, args[0]);
+            if (!(self.mActor->getTypeName() == "minecraft:item")) {
+                vm->RuntimeError("self is not a item");
+                return py_var(vm, NoReturn{});
+            }
+            return _createItemSatckFormActor(vm, self.mActor);
+        });
+        IABIND(age, 0);
+        IABIND(pickupDelay, 0);
+        IABIND(throwTime, 0);
+        IABIND(bobOffs, 0);
+        IABIND(health, 0);
+        IABIND(lifeTime, 0);
+        IABIND(isInItemFrame, 0);
+        IABIND(isFromFishing, 0);
+        IABIND_VOID(setSourceEntity, 1, , _CAST(ActorWapper&, args[0]).mActor);
 #undef BIND
 #undef PLBIND
+#undef IABIND
 #undef BIND_VOID
 #undef PLBIND_VOID
+#undef IABIND_VOID
+        vm->bind_func<1>(type, "formAddress", [](VM* vm, ArgsView args) {
+            auto ac = (Actor*)(_CAST(i64, args[0]));
+            return VAR_T(ActorWapper, ac);
+        });
     }
     PY_CLASS(ActorWapper, TypeWappers, ActorWapper)
 };

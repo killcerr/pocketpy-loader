@@ -321,7 +321,6 @@ auto ActorTypeToString(auto e) {
     return "Unknown";
 }
 namespace type_wappers {
-struct error_type;
 struct ActorDamageSourceWapper {
     ActorDamageSource* mSource;
 
@@ -343,11 +342,11 @@ struct ActorDamageSourceWapper {
             auto& self = PK_OBJ_GET(ActorDamageSourceWapper, obj);
             return (i64)(std::hash<ActorDamageSource*>{}(self.mSource));
         });
-        vm->bind__repr__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* obj) {
+        vm->bind__str__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* obj) {
             ActorDamageSourceWapper& self = PK_OBJ_GET(ActorDamageSourceWapper, obj);
             return VAR(ActorDamageSource::lookupCauseName(self.mSource->getCause()));
         });
-        vm->bind__str__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* obj) {
+        vm->bind__repr__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* obj) {
             ActorDamageSourceWapper& self = PK_OBJ_GET(ActorDamageSourceWapper, obj);
             pkpy::SStream            ss;
             ss.write_hex(self.mSource);
@@ -357,7 +356,7 @@ struct ActorDamageSourceWapper {
     vm->bind_method<ARGC>(type, #NAME, [](VM* vm, ArgsView args) {                                                     \
         ActorDamageSourceWapper& self = _CAST(ActorDamageSourceWapper&, args[0]);                                      \
         EXPR return py_var(vm, RTM2(self.mSource->##NAME(__VA_ARGS__) RTM1));                                          \
-    });
+    })
         BIND(isEntitySource, 0);
         BIND(isBlockSource, 0);
         BIND(isFire, 0);
@@ -398,6 +397,10 @@ struct ActorDamageSourceWapper {
             ActorDamageSourceWapper& _self  = _CAST(ActorDamageSourceWapper&, self);
             ActorDamageSourceWapper& _other = _CAST(ActorDamageSourceWapper&, other);
             return VAR(_self.mSource->mCause == _other.mSource->mCause);
+        });
+        vm->bind_func<1>(type, "formAddress", [](VM* vm, ArgsView args) {
+            auto s = (ActorDamageSource*)(_CAST(i64, args[0]));
+            return VAR_T(ActorDamageSourceWapper, s);
         });
     }
     PY_CLASS(ActorDamageSourceWapper, TypeWappers, ActorDamageSourceWapper)

@@ -213,24 +213,25 @@ bool nbtSetter() {
         if (nbtSetter_context.type == "CompoundTag") {
             auto& t     = _py_cast<Dict&>(nbtSetter_context.vm, nbtSetter_context.val);
             auto  store = nbtSetter_context.nbt;
+            auto  lp    = nbtSetter_context.path[0];
             for (auto i : t.keys()) {
                 if (t.try_get(i)->type == nbtSetter_context.vm->tp_tuple) {
                     auto p  = py_cast<List&>(nbtSetter_context.vm, i);
                     auto tp = py_cast<Tuple&>(nbtSetter_context.vm, t.try_get(i));
                     if (tp.size() != 2) {
-                        nbtSetter_context.vm->RuntimeError("Tuple size must be 2.");
+                        nbtSetter_context.vm->RuntimeError("Tuple size must be 2");
                         continue;
                     }
-                    auto type = py_cast<Str&>(nbtSetter_context.vm, tp[0]);
-                    auto val  = tp[1];
-                    nbtSetter_context.nbt =
-                        nbtSetter_context.nbt->get(nbtSetter_context.path[0])->as_ptr<CompoundTag>();
+                    auto type             = py_cast<Str&>(nbtSetter_context.vm, tp[0]);
+                    auto val              = tp[1];
+                    nbtSetter_context.nbt = store->get(lp)->as_ptr<CompoundTag>();
                     nbtSetter_context.path.clear();
                     nbtSetter_context.val  = val;
                     nbtSetter_context.type = type.c_str();
                     for (auto j : p) {
                         nbtSetter_context.path.push_back(py_cast<Str&>(nbtSetter_context.vm, j).c_str());
                     }
+                    if (!nbtSetter()) return false;
                 }
             }
         }

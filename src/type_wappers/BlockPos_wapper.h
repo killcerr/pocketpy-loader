@@ -34,18 +34,22 @@ struct PyBlockPos : BlockPos {
         BlockPos& self  = _CAST(PyBlockPos&, args[0]);                                                                 \
         BlockPos& other = _CAST(PyBlockPos&, args[1]);                                                                 \
         return VAR_T(::PyBlockPos, (self OP other));                                                                   \
-    });
+    })
         BIND_BLOCKPOS_OP(__add__, +);
-        BIND_BLOCKPOS_OP(__add__, +)
-        BIND_BLOCKPOS_OP(__sub__, -)
-        BIND_BLOCKPOS_OP(__mul__, *)
-        BIND_BLOCKPOS_OP(__rmul__, *)
-        BIND_BLOCKPOS_OP(__truediv__, /)
+        BIND_BLOCKPOS_OP(__add__, +);
+        BIND_BLOCKPOS_OP(__sub__, -);
+        BIND_BLOCKPOS_OP(__mul__, *);
+        BIND_BLOCKPOS_OP(__rmul__, *);
+        BIND_BLOCKPOS_OP(__truediv__, /);
 #undef BIND_BLOCKPOS_OP
         vm->bind__eq__(PK_OBJ_GET(Type, type), [](VM* vm, PyObject* self, PyObject* other) {
             BlockPos _self  = _CAST(PyBlockPos&, self);
             BlockPos _other = _CAST(PyBlockPos&, other);
             return VAR(_self == _other);
+        });
+        vm->bind_func<1>(type, "formAddress", [](VM* vm, ArgsView args) {
+            auto pos = (BlockPos*)(_CAST(i64, args[0]));
+            return VAR_T(PyBlockPos, *pos);
         });
     }
 };
