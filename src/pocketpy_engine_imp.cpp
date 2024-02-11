@@ -76,7 +76,9 @@ struct pocketpy_engine {
 using engines_t = ::std::unordered_map<std::string, pocketpy_engine>;
 engines_t         engines;
 std::vector<char> readF(auto path) {
-    auto              f = fopen(path, "r");
+    auto f = fopen(path, "r");
+    logger.info(path);
+    if (!f) return {};
     std::vector<char> source;
     char              c = getc(f);
     while (c != EOF) {
@@ -328,14 +330,28 @@ void setupHelperModule(VM* vm) {
         return VAR(nbtSetter());
     });
 }
-
+struct {
+    ::std::string current_import_path;
+} import_context;
 VM* setupVM() {
-    auto vm = new VM();
+    auto vm             = new VM();
+    vm->_import_handler = [](const char* name, int namesz, int* osize) -> unsigned char* {
+        std::string f(name, namesz);
+        for (::std::size_t i = 0; i < f.size(); i++) {
+            if (f[i] == '\\') f[i] = '/';
+        }
+        auto fp  = import_context.current_import_path + f;
+        auto res = readF(fp.c_str());
+        if (res.size() == 0) return nullptr;
+        logger.info("{}", (void*)osize);
+        *osize  = (int)res.size();
+        auto rs = new char[*osize];
+        return (unsigned char*)std::memcpy(rs, res.data(), *osize);
+    };
     setupLoaderModule(vm);
     setupTypeBinds(vm);
     setupHelperModule(vm);
     setupEvevntsModule(vm);
-
     return vm;
 }
 #define CALL_LOADER_CALLBACK(CALLBACK)                                                                                 \
@@ -364,9 +380,10 @@ bool load(ll::plugin::Manifest manifest) {
           == std::filesystem::file_type::regular))
         return false;
     pocketpy_engine engine{};
-    current_loader_context.name = manifest.name;
-    engine.vm                   = setupVM();
-    auto file                   = readF(("./plugins/" + manifest.name + "/" + manifest.entry).c_str());
+    current_loader_context.name        = manifest.name;
+    import_context.current_import_path = "./plugins/" + manifest.name + "/";
+    engine.vm                          = setupVM();
+    auto file                          = readF(("./plugins/" + manifest.name + "/" + manifest.entry).c_str());
     engine.vm->exec(
         {file.data(), (int)file.size()},
         "./plugins/" + manifest.name + "/" + manifest.entry,

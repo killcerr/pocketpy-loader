@@ -13,7 +13,8 @@ target("pocketpy-loader")
     )
     add_defines(
         "NOMINMAX",
-        "UNICODE"
+        "UNICODE",
+        "PK_ENABLE_OS"
     )
     add_files(
         "src/**.cpp"
