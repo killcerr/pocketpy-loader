@@ -1,0 +1,27 @@
+{
+  "format_version": 2,
+  "tooth": "github.com/killcerr/pocketpy-loader",
+  "version": "0.0.1",
+  "info": {
+    "name": "pocketpy-loader",
+    "description": "a simple python plugin loader that use pocketpy to implement",
+    "author": "killcerr",
+    "tags": ["loader", "levilamina"]
+  },
+  "dependencies": {},
+  "platforms": [
+    {
+      "goos": "windows",
+      "goarch": "amd64",
+      "asset_url": "https://github.com/killcerr/pocketpy-loader/releases/download/v0.0.1/pocketpy-loader.zip",
+      "files": {
+        "place": [
+          {
+            "src": "pocketpy-loader/*",
+            "dest": "plugins/pocketpy-loader/"
+          }
+        ]
+      }
+    }
+  ]
+}

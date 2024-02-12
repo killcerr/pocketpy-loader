@@ -2,7 +2,7 @@ add_rules("mode.debug", "mode.release", "mode.releasedbg")
 
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
-add_requires("levilamina")
+add_requires("levilamina","dyncall")
 
 set_runtimes("MD")
 
@@ -23,7 +23,8 @@ target("pocketpy-loader")
         "src"
     )
     add_packages(
-        "levilamina"
+        "levilamina",
+        "dyncall"
     )
     add_shflags(
         "/DELAYLOAD:bedrock_server.dll"
@@ -31,7 +32,6 @@ target("pocketpy-loader")
     set_exceptions("none")
     set_kind("shared")
     set_languages("cxx23")
-
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
