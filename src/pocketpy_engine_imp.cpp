@@ -1,5 +1,6 @@
 #include "loader_info.hpp"
 #include "logger.h"
+#include "native_helper.h"
 #include "pocketpy.h"
 #include "pocketpy_plugin_loader.hpp"
 #include "pocketpy_type_binds.h"
@@ -328,6 +329,125 @@ void setupHelperModule(VM* vm) {
         nbtSetter_context.type = t.c_str();
         nbtSetter_context.val  = v;
         return VAR(nbtSetter());
+    });
+    vm->bind(helperModule, "call(symbol:str,ret:str,*args)", [](VM* vm, ArgsView args) {
+        std::vector<::native_helper::ArgType>     argtypes;
+        std::vector<::native_helper::TypeVariant> argvals;
+        Tuple                                     _args = _CAST(Tuple, args[2]);
+        for (auto arg : _args) {
+            Tuple tv = _CAST(Tuple, arg);
+            if (tv.size() != 2) {
+                vm->RuntimeError("arg size must be 2");
+                return VAR(NoReturn{});
+            } else {
+                auto type = ::native_helper::form_string(_CAST(Str&, tv[0]).sv());
+                using enum ::native_helper::ArgType;
+                using namespace native_helper;
+                ::native_helper::TypeVariant va;
+                /*logger.info("call_bind:{}", __LINE__);*/
+                switch (type) {
+#define CASE(N)                                                                                                        \
+    case ui##N:                                                                                                        \
+        /*logger.info("call_bind:{}", __LINE__);*/                                                                     \
+        va.emplace<cast_to_int<ui##N>>(_CAST(uint##N##_t, tv[1]));                                                     \
+        break;                                                                                                         \
+    case i##N:                                                                                                         \
+        /*logger.info("call_bind:{}", __LINE__);*/                                                                     \
+        va.emplace<cast_to_int<ui##N>>(_CAST(uint##N##_t, tv[1]));                                                     \
+        break
+                case ui8:
+                    va.emplace<cast_to_int<ui8>>(_py_cast<uint8_t>(vm, tv[1]));
+                    break;
+                case i8:
+                    va.emplace<cast_to_int<i8>>(_py_cast<char>(vm, tv[1]));
+                    break;
+                    CASE(16);
+                    CASE(32);
+                    CASE(64);
+#undef CASE
+                case f:
+                    // logger.info("call_bind:{}", __LINE__);
+                    va.emplace<cast_to_int<f>>(_CAST(float, tv[1]));
+                    break;
+                case d:
+                    // logger.info("call_bind:{}", __LINE__);
+                    va.emplace<cast_to_int<d>>(_CAST(double, tv[1]));
+                    break;
+                case b:
+                    // logger.info("call_bind:{}", __LINE__);
+                    va.emplace<cast_to_int<b>>(_CAST(bool, tv[1]));
+                    break;
+                case c:
+                    // logger.info("call_bind:{}", __LINE__);
+                    va.emplace<cast_to_int<c>>(_CAST(char, tv[1]));
+                    break;
+                default:
+                    logger.info("call_bind:{}", __LINE__);
+                    break;
+                }
+                logger.info("call_bind:{}", __LINE__);
+                argtypes.push_back(type);
+                argvals.push_back(va);
+            }
+        }
+        auto res = ::native_helper::call(
+            ::native_helper::form_string(_CAST(Str&, args[1]).sv()),
+            argtypes,
+            argvals,
+            ll::memory::resolveSymbol(_CAST(Str&, args[0]).sv(), false)
+        );
+        using enum ::native_helper::ArgType;
+        using namespace ::native_helper;
+        switch (::native_helper::form_string(_CAST(Str&, args[1]).sv())) {
+        case v:
+            return VAR(NoReturn{});
+            break;
+#define RT(N) return VAR(std::get<::native_helper::cast_to_int<N>>(res))
+        case ui8:
+            RT(ui8);
+            break;
+        case i8:
+            RT(i8);
+            break;
+        case ui16:
+            RT(ui16);
+            break;
+        case i16:
+            RT(i16);
+            break;
+        case ui32:
+            RT(ui32);
+            break;
+        case i32:
+            RT(i32);
+            break;
+        case ui64:
+            RT(ui64);
+            break;
+        case i64:
+            RT(i64);
+            break;
+        case f:
+            RT(f);
+            break;
+        case d:
+            RT(d);
+            break;
+        case p:
+            RT(p);
+            break;
+        case b:
+            RT(b);
+            break;
+        case c:
+            RT(c);
+            break;
+        default:
+            vm->RuntimeError("unknown type");
+            return VAR(NoReturn{});
+            break;
+        }
+#undef RT
     });
 }
 struct {

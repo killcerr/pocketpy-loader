@@ -45,5 +45,5 @@ bool ::pocketpy_plugin_loader::pocketpy_plugin_manager::disable(std::string_view
 std::shared_ptr<ll::plugin::Plugin> pocketpy_plugin_loader::pocketpy_plugin_manager::get(std::string_view name) {
     // return ::pocketpy_plugin_loader::engine::disable(name);
     auto manager = ::pocketpy_plugin_loader::pocketpy_plugin_manager::Impl::data();
-    return manager->getPlugin(name);
+    return manager->getPlugin(name); //
 }
