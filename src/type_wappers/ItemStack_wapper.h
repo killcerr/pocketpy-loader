@@ -54,13 +54,13 @@ struct ItemStackWapper {
         BIND(getTypeName, 0);
         BIND(getDescriptionName, 0);
         BIND(getAuxValue, 0);
-        BIND(getCategoryName, 0);
+        // BIND(getCategoryName, 0);
         BIND(getCustomName, 0);
         BIND(getDamageValue, 0);
         BIND(getIdAux, 0);
         BIND(getMaxStackSize, 0);
         BIND(hasUserData, 0);
-        BIND_VOID(setStackSize, 1, , py_cast<uchar>(vm, args[1]));
+        // BIND_VOID(setStackSize, 1, , py_cast<uchar>(vm, args[1]));
         BIND_VOID(setRepairCost, 1, , py_cast<int>(vm, args[1]));
         BIND_VOID(startCoolDown, 1, , (Player*)_CAST(ActorWapper&, args[1]).mActor);
         vm->bind_method<1>(type, "use", [](VM* vm, ArgsView args) {

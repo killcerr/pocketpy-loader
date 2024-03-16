@@ -73,7 +73,7 @@ struct ItemWapper {
         BIND(showsDurabilityInCreative, 0);
         BIND(uniqueAuxValues, 0);
         BIND(useInterruptedByAttacking, 0);
-        BIND(allowOffhand, 0);
+        // BIND(allowOffhand, 0);
         BIND(getFrameCount, 0);
         BIND(getFullItemName, 0);
         BIND(getFullNameHash, 0, , .hash);
@@ -107,8 +107,8 @@ struct ItemWapper {
         BIND(getIconYOffset, 0);
         BIND(getAuxValuesDescription, 0);
         BIND(isElytra, 0);
-        BIND(isExplodable, 0);
-        BIND(isFireResistant, 0);
+        // BIND(isExplodable, 0);
+        // BIND(isFireResistant, 0);
         BIND(isNameTag, 0);
         BIND(isSeed, 0);
         BIND_VOID(setAllowOffhand, 1, , _CAST(bool, args[1]));

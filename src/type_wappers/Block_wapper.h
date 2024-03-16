@@ -59,7 +59,7 @@ struct BlockWapper {
         BIND(getData, 0);
         BIND(getBlockItemId, 0);
         BIND(canBeOriginalSurface, 0);
-        BIND(canContainLiquid, 0);
+        // BIND(canContainLiquid, 0);
         BIND(canDamperVibrations, 0);
         BIND(canHaveExtraData, 0);
         BIND(canHurtAndBreakItem, 0);
