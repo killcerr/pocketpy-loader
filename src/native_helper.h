@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <ll/api/memory/Hook.h>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -18,10 +19,10 @@ using TypeVariant = std::variant<
     int64_t,
     float,
     double,
-    void*,
     bool,
-    char>;
-enum class ArgType : unsigned char { n = -1, v, ui8, ui16, ui32, ui64, i8, i16, i32, i64, f, d, p, b, c };
+    char,
+    void*>;
+enum class ArgType : signed char { n = -1, v, ui8, ui16, ui32, ui64, i8, i16, i32, i64, f, d, b, c, p };
 ArgType form_string(const auto& str) {
     using enum ArgType;
     using namespace std::string_view_literals;
@@ -40,6 +41,7 @@ ArgType form_string(const auto& str) {
     RT_IF(d);
     RT_IF(b);
     RT_IF(c);
+    RT_IF(p);
 #undef RT_IF
     return n;
 }
@@ -59,10 +61,18 @@ constexpr auto cast_to_int = [] {
     RT_IF(i64, 8);
     RT_IF(f, 9);
     RT_IF(d, 10);
-    RT_IF(p, 11);
-    RT_IF(b, 12);
-    RT_IF(c, 13);
+    RT_IF(b, 11);
+    RT_IF(c, 12);
+    RT_IF(p, 13);
 #undef RT_IF
 }();
 TypeVariant call(ArgType ret, const std::vector<ArgType>& args, const std::vector<TypeVariant>& vals, void* fp);
+
+void hook(
+    std::string_view                                           sym,
+    ll::memory::HookPriority                                   pri,
+    ArgType                                                    ret,
+    const std::vector<ArgType>&                                args,
+    std::function<TypeVariant(std::vector<TypeVariant>& args)> cb
+);
 } // namespace native_helper

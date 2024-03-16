@@ -192,9 +192,9 @@ bool nbtSetter() {
         }
         if (nbtSetter_context.type == "ByteArrayTag") {
             auto&              t = _py_cast<List&>(nbtSetter_context.vm, nbtSetter_context.val);
-            std::vector<schar> arr(t.size());
+            std::vector<uchar> arr(t.size());
             for (auto c : t) {
-                arr.push_back(py_cast<char>(nbtSetter_context.vm, c));
+                arr.push_back(py_cast<uchar>(nbtSetter_context.vm, c));
             }
             (*nbtSetter_context.nbt)[nbtSetter_context.path[0]] = ByteArrayTag{arr};
             return true;
@@ -449,6 +449,140 @@ void setupHelperModule(VM* vm) {
         }
 #undef RT
     });
+    vm->bind(
+        helperModule,
+        "hook(callback:function,symbol:str,hookPriority:str,ret:str,**args)",
+        [](VM* vm, ArgsView args) {
+            logger.info("hook bind:{}", __LINE__);
+            auto                                callback = args[0];
+            auto                                symbol   = _CAST(Str&, args[1]).sv();
+            auto                                pri      = _CAST(Str&, args[2]);
+            auto                                ret      = _CAST(Str&, args[3]);
+            auto                                _args    = _CAST(Tuple&, args[4]);
+            ll::memory::HookPriority            _pri;
+            std::vector<native_helper::ArgType> __args;
+            auto                                _ret = ::native_helper::form_string(ret);
+            logger.info("hook bind:{}", __LINE__);
+#define IF(P)                                                                                                          \
+    if (pri == #P) _pri = ll::memory::HookPriority::##P
+            IF(Highest);
+            IF(High);
+            IF(Normal);
+            IF(Low);
+            IF(Lowest);
+            for (auto arg : _args) __args.push_back(::native_helper::form_string(_CAST(Str&, arg)));
+            ::native_helper::hook(
+                symbol,
+                _pri,
+                _ret,
+                __args,
+                [__args, vm, callback, _ret](std::vector<native_helper::TypeVariant>& args
+                ) -> native_helper::TypeVariant {
+                    logger.info("hook callback", __LINE__);
+                    List ___args(std::min(__args.size(), args.size()));
+                    for (int i = 0; i < std::min(__args.size(), args.size()); i++) {
+                        using enum ::native_helper::ArgType;
+                        switch (__args[i]) {
+#define CASE(N) ___args.push_back(VAR(std::get<::native_helper::cast_to_int<N>>(args[i])))
+                        case ui8:
+                            CASE(ui8);
+                            break;
+                        case i8:
+                            CASE(i8);
+                            break;
+                        case ui16:
+                            CASE(ui16);
+                            break;
+                        case i16:
+                            CASE(i16);
+                            break;
+                        case ui32:
+                            CASE(ui32);
+                            break;
+                        case i32:
+                            CASE(i32);
+                            break;
+                        case ui64:
+                            CASE(ui64);
+                            break;
+                        case i64:
+                            CASE(i64);
+                            break;
+                        case f:
+                            CASE(f);
+                            break;
+                        case d:
+                            CASE(d);
+                            break;
+                        case p:
+                            CASE(p);
+                            break;
+                        case b:
+                            CASE(b);
+                            break;
+                        case c:
+                            CASE(c);
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+#undef CASE
+                    vm->s_data.push(callback);
+                    for (auto a : ___args) {
+                        vm->s_data.push(a);
+                    }
+                    auto res = vm->vectorcall(___args.size());
+                    // auto                         res = vm->call(callback);
+                    ::native_helper::TypeVariant va;
+                    using enum ::native_helper::ArgType;
+                    using namespace ::native_helper;
+                    switch (_ret) {
+#define CASE(N)                                                                                                        \
+    case ui##N:                                                                                                        \
+        /*logger.info("call_bind:{}", __LINE__);*/                                                                     \
+        va.emplace<cast_to_int<ui##N>>(_CAST(uint##N##_t, res));                                                       \
+        break;                                                                                                         \
+    case i##N:                                                                                                         \
+        /*logger.info("call_bind:{}", __LINE__);*/                                                                     \
+        va.emplace<cast_to_int<ui##N>>(_CAST(uint##N##_t, res));                                                       \
+        break
+                    case ui8:
+                        va.emplace<cast_to_int<ui8>>(_py_cast<uint8_t>(vm, res));
+                        break;
+                    case i8:
+                        va.emplace<cast_to_int<i8>>(_py_cast<char>(vm, res));
+                        break;
+                        CASE(16);
+                        CASE(32);
+                        CASE(64);
+#undef CASE
+                    case f:
+                        // logger.info("call_bind:{}", __LINE__);
+                        va.emplace<cast_to_int<f>>(_CAST(float, res));
+                        break;
+                    case d:
+                        // logger.info("call_bind:{}", __LINE__);
+                        va.emplace<cast_to_int<d>>(_CAST(double, res));
+                        break;
+                    case b:
+                        // logger.info("call_bind:{}", __LINE__);
+                        va.emplace<cast_to_int<b>>(_CAST(bool, res));
+                        break;
+                    case c:
+                        // logger.info("call_bind:{}", __LINE__);
+                        va.emplace<cast_to_int<c>>(_CAST(char, res));
+                        break;
+                    default:
+                        logger.info("call_bind:{}", __LINE__);
+                        break;
+                    }
+                    return va;
+                }
+            );
+            return VAR(NoReturn{});
+        }
+    );
 }
 struct {
     ::std::string current_import_path;
